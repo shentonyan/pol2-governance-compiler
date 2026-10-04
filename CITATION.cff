@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "PoL2 Governance Compiler: knowledge-and-gates toolbox for compiling PoL2 runtime governance layers"
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-10-05
 license: CC0-1.0
 authors:

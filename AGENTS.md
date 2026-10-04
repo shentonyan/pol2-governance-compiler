@@ -20,7 +20,10 @@
 
 ```powershell
 python -m unittest discover -s tests -t .
-python -m gates.run_all --cases <cases.jsonl> --predictions <predictions.jsonl>
+python -m redteam
+python -m gates.run_all --cases <evaluated.jsonl> --dataset <all-splits.jsonl ...> --predictions <predictions.jsonl> --card <card.json>
 ```
 
-`run_all` 的结论只有三种：`fail`、`incomplete`（还有门禁未实现）、`pass`。在十条门禁全部实现之前，结论不可能是 `pass`。
+`run_all` 的结论只有三种：`fail`、`incomplete`（有门禁因缺少输入而无法判定）、`pass`（十条全部通过）。`incomplete` 不是通过。
+
+新增作弊手法时，先在 `redteam/scenarios.py` 加场景并写明预定门禁，再改门禁，让 `tests/test_redteam.py` 继续通过。

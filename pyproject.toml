@@ -1,11 +1,14 @@
 [project]
 name = "pol2-governance-compiler"
-version = "0.1.0"
+version = "0.2.0"
 description = "Knowledge-and-gates toolbox for compiling PoL2 runtime governance layers"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "CC0-1.0" }
 dependencies = []
 
+[project.optional-dependencies]
+figures = ["matplotlib>=3.7"]
+
 [tool.setuptools]
-packages = ["gates", "baselines"]
+packages = ["gates", "baselines", "redteam"]

@@ -18,6 +18,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Unit tests
         run: python -m unittest discover -s tests -t . -v
+      - name: Red-team matrix (honest control passes, every cheat caught)
+        run: python -m redteam
       - name: Repository passes G04 (no holdout content)
         run: python -m gates.g04_holdout .
       - name: Pilot data passes G02
