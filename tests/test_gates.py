@@ -106,6 +106,19 @@ class G06Test(unittest.TestCase):
         result = g06_floor.check(PILOT, reference_policy(PILOT))
         self.assertEqual(result.status, 'pass', result.findings)
         self.assertAlmostEqual(result.metrics['candidate']['j'], 1.0)
+        self.assertGreater(result.metrics['candidate']['j_lower_95'], 0)
+
+    def test_small_positive_j_is_not_enough(self):
+        # J = 0.5 on 4 + 4 cases: above the line, but not distinguishable from luck
+        cases = [case(f'n{i}', 'f') for i in range(4)]
+        cases += [case(f'v{i}', 'g', status='violating', actions=('block',)) for i in range(4)]
+        stop = {'n0', 'v0', 'v1', 'v2'}
+        preds = [{'id': c['id'], 'action': 'block' if c['id'] in stop else 'allow',
+                  'execution_status': 'ok'} for c in cases]
+        result = g06_floor.check(cases, preds)
+        self.assertAlmostEqual(result.metrics['candidate']['j'], 0.5)
+        self.assertEqual(result.status, 'fail')
+        self.assertIn('not_significantly_above_floor', result.findings[0])
 
     def test_mixture_on_the_line_fails(self):
         # half the normal cases blocked, half the violating cases allowed: miss + over = 1
@@ -141,17 +154,21 @@ class G06Test(unittest.TestCase):
 
 
 class RunAllTest(unittest.TestCase):
-    def test_pilot_with_reference_policy_is_incomplete_not_pass(self):
+    def test_pilot_without_card_is_incomplete_not_pass(self):
         report = run_all.run(PILOT, None, reference_policy(PILOT))
-        self.assertEqual(report['verdict'], 'incomplete')
-        self.assertEqual(report['gates_implemented'], '3/10')
+        self.assertEqual(report['verdict'], 'fail')  # G08: pilot lacks insufficient cases per family
         statuses = {r['gate']: r['status'] for r in report['results']}
         self.assertEqual(statuses['G06'], 'pass')
-        self.assertEqual(statuses['G08'], 'not_implemented')
+        self.assertEqual(statuses['G08'], 'fail')
+        self.assertEqual(statuses['G07'], 'not_applicable')
 
     def test_degenerate_candidate_fails_overall(self):
         report = run_all.run(PILOT, None, predict('always_block', PILOT))
         self.assertEqual(report['verdict'], 'fail')
+
+    def test_inputs_missing_never_pass(self):
+        report = run_all.run()
+        self.assertEqual(report['verdict'], 'incomplete')
 
 
 if __name__ == '__main__':

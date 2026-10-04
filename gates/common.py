@@ -71,3 +71,28 @@ class GateResult:
 
     def to_dict(self):
         return asdict(self)
+
+
+def load_json(path):
+    """Read one JSON document (e.g. a result card) with the same strictness as load_jsonl."""
+    path = Path(path)
+    value = parse_json(path.read_text(encoding='utf-8'), path.name)
+    if not isinstance(value, dict):
+        raise InputError(f'{path.name}: expected a JSON object')
+    return value
+
+
+def split_of(row):
+    """Split name of a case: ``split`` in the pilot, ``region`` in the DATA-02 contract."""
+    for key in ('split', 'region'):
+        value = row.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def reference_of(case, labels_by_id=None):
+    """Reference label of a case: a labels file wins over a proposal embedded in the case."""
+    if labels_by_id is not None:
+        return labels_by_id.get(case.get('id'))
+    return case.get('proposal')

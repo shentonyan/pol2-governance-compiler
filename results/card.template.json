@@ -1,0 +1,60 @@
+{
+  "card_version": 1,
+  "candidate": "example-candidate",
+  "data": {
+    "version": "pilot-053a67b or a DATA-02 release id",
+    "reference_status": "proposed_unreviewed",
+    "eligible_for_ranking": false
+  },
+  "evaluation": {
+    "split": "public_test",
+    "blind": false,
+    "public_test_seen": true,
+    "evaluator": "self"
+  },
+  "thresholds": {
+    "case_ids": []
+  },
+  "lineage": {
+    "generator": [
+      {
+        "name": "teacher model name",
+        "family": "vendor or model family"
+      }
+    ],
+    "truth": [
+      {
+        "name": "truth teacher 1",
+        "family": "family 1"
+      },
+      {
+        "name": "truth teacher 2",
+        "family": "family 2"
+      }
+    ],
+    "judges": [
+      {
+        "name": "judge model name",
+        "family": "family 3",
+        "base_family": "if fine-tuned"
+      }
+    ]
+  },
+  "clauses": [
+    "PoL.2.1",
+    "PoL.2.10"
+  ],
+  "latency": {
+    "requests": 0,
+    "failures": 0,
+    "p50_ms": 0,
+    "p95_ms": 0,
+    "hardware_class": "single consumer GPU",
+    "concurrency": 1
+  },
+  "honesty": {
+    "reference_not_gold_unless_reviewed": true,
+    "no_generalisation_to_real_people": true,
+    "negative_results_reported": true
+  }
+}

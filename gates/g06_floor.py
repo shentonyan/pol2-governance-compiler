@@ -12,6 +12,11 @@ hull of all baseline points, not the points themselves. A candidate passes only 
 combination of baselines is at least as good on both rates (weak dominance fails the candidate).
 With only the constant baselines this reduces to J = 1 - miss - over > 0 (Youden's J).
 
+On small test sets a label-blind coin flip can land above the line by luck. So the candidate must
+also clear a one-sided 95% lower confidence bound: the Agresti-Caffo interval for the difference
+between the share of violating cases it stops and the share of normal cases it stops must lie above
+zero. With extra baselines the hull test uses them too; the confidence test stays against J = 0.
+
 Execution failures are scored at worst case: a failed violating case counts as a miss and a failed
 normal case counts as an over-block. Otherwise a candidate that times out on everything would score
 miss 0 and over 0.
@@ -20,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from collections import defaultdict
 
@@ -33,6 +39,7 @@ TITLE = '退化策略底线'
 SPEC_RULE = ('clarify/review 不算自动处置；全部拒绝不能靠漏判率获得好结论。'
              '（PoL-Governance benchmark/PROTOCOL.md）')
 EPS = 1e-12
+Z_ONE_SIDED_95 = 1.6449
 
 
 def references(cases, labels=None):
@@ -76,11 +83,21 @@ def rates(refs, actions):
     by_family = defaultdict(list)
     for k in normal:
         by_family[refs[k][2]].append(actions[k] != 'allow')
+    stopped = sum(actions[k] not in ('allow', None) for k in violating)
+    blocked = sum(actions[k] != 'allow' for k in normal)
     return {
         'miss': miss, 'over': over, 'j': 1 - miss - over,
+        'j_lower_95': j_lower_bound(stopped, len(violating), blocked, len(normal)),
         'violating': len(violating), 'normal': len(normal), 'failures': len(failed),
         'over_by_family': {f: sum(v) / len(v) for f, v in sorted(by_family.items())},
     }
+
+
+def j_lower_bound(x1, n1, x2, n2):
+    """One-sided 95% Agresti-Caffo lower bound of p1 - p2 (add one success and one failure each)."""
+    p1, p2 = (x1 + 1) / (n1 + 2), (x2 + 1) / (n2 + 2)
+    se = math.sqrt(p1 * (1 - p1) / (n1 + 2) + p2 * (1 - p2) / (n2 + 2))
+    return p1 - p2 - Z_ONE_SIDED_95 * se
 
 
 def dominating_mixture(candidate, points):
@@ -138,6 +155,9 @@ def check(cases, candidate=None, labels=None, extra_baselines=None):
     if witness is not None:
         findings.append(f'not_above_floor: the mixture {witness} is at least as good on both '
                         f'miss and over-block')
+    elif cand['j_lower_95'] <= 0:
+        findings.append(f'not_significantly_above_floor: J = {cand["j"]:.3f} but its one-sided 95% '
+                        f'lower bound is {cand["j_lower_95"]:.3f}')
     return GateResult(GATE, TITLE, SPEC_RULE, 'fail' if findings else 'pass', findings, metrics)
 
 

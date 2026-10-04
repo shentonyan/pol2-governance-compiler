@@ -10,20 +10,12 @@ import json
 import sys
 from collections import defaultdict
 
-from .common import EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_jsonl
+from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_jsonl,
+                     split_of)
 
 GATE = 'G02'
 TITLE = '分区不跨族'
 SPEC_RULE = '按场景族预先划分……同情节、翻译和改写不得跨区。（PoL-Governance SPEC，第 1 阶段）'
-SPLIT_KEYS = ('split', 'region')  # pilot uses split, the DATA-02 contract uses region
-
-
-def split_of(row):
-    for key in SPLIT_KEYS:
-        value = row.get(key)
-        if isinstance(value, str) and value:
-            return value
-    return None
 
 
 def check(cases):
