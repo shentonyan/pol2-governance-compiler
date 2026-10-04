@@ -1,0 +1,11 @@
+[project]
+name = "pol2-governance-compiler"
+version = "0.1.0"
+description = "Knowledge-and-gates toolbox for compiling PoL2 runtime governance layers"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "CC0-1.0" }
+dependencies = []
+
+[tool.setuptools]
+packages = ["gates", "baselines"]

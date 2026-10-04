@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "PoL2 Governance Compiler: knowledge-and-gates toolbox for compiling PoL2 runtime governance layers"
+version: 0.1.0
+date-released: 2026-10-05
+license: CC0-1.0
+authors:
+  - name: "pol2-governance-compiler contributors"
+keywords: [AI governance, evaluation, Proof of Love2, NaturalDAO]
+references:
+  - type: software
+    title: "NaturalDAO: Proof of Love2"
+    authors:
+      - name: "NaturalDAO contributors"
+    url: "https://github.com/naturaldao/NaturalDAO"
+  - type: software
+    title: "MetaInfer: A Knowledge Only LLM Inference Engine Generator SKILL Toolbox"
+    authors:
+      - family-names: Miao
+        given-names: Zhenwen
+      - family-names: Wang
+        given-names: Honglin
+      - family-names: Mi
+        given-names: Mingheng
+    url: "https://arxiv.org/abs/2607.12875"
