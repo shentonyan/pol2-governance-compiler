@@ -68,6 +68,7 @@ The fourth command exits with code 1 by design: G06 rules always_block not above
 ## Research note
 
 - [MEMT-1.0 and PoL2 in the public-goods era](docs/memt-pol2-public-goods.md): native-memory boundaries and a testable route for embodied shared services and scarce-resource governance.
+- [Separating experience memory, authority, authorization, and audit](docs/memory-authority-storage.md): four trust boundaries, architecture and sequence diagrams, a PostgreSQL/object-store design, and revocation, offline, and deletion behavior.
 
 ## Relation to NaturalDAO
 

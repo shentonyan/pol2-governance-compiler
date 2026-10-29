@@ -92,6 +92,7 @@ python -m tools.make_figures
 ## 研究札记
 
 - [MEMT-1.0 与 PoL2 公共品时代](docs/memt-pol2-public-goods.md)：分析 native memory 的技术边界，并提出具身共享服务与稀缺资源治理的可检验路线。
+- [经验记忆、权威、授权与审计的分层架构](docs/memory-authority-storage.md)：给出四层权力边界、Mermaid 架构图/时序图、PostgreSQL + 对象存储 + 派生检索索引的储存设计，以及撤权、离线和删除策略。
 
 ## 与 NaturalDAO 的关系
 
