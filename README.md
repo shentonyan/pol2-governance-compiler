@@ -89,6 +89,10 @@ python -m tools.make_figures
 
 *图 5　四段路线，每段的出口是一道门禁。第 0 段已完成；第 1 段已完成条款对照表和待裁清单，契约文件与团队首轮裁定待做；第 2 段为首次编译；第 3 段依赖 DATA-02 的教师真值和 APP-01 的宿主接口。*
 
+## 研究札记
+
+- [MEMT-1.0 与 PoL2 公共品时代](docs/memt-pol2-public-goods.md)：分析 native memory 的技术边界，并提出具身共享服务与稀缺资源治理的可检验路线。
+
 ## 与 NaturalDAO 的关系
 
 - 本项目目前在本仓库独立开发，尚未在 PoL-Governance 认领任务。若后续并入，计划的任务号为 HARNESS-01，目标目录为 `PoL-Governance/research/PoL2-Governance-Compiler/`。

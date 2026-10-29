@@ -65,6 +65,10 @@ The fourth command exits with code 1 by design: G06 rules always_block not above
 
 *Figure 5. Four phases, each ending at a gate. Phase 0 is complete; phase 1 has the crosswalk and the open list, contract files and the team's first rulings are next.*
 
+## Research note
+
+- [MEMT-1.0 and PoL2 in the public-goods era](docs/memt-pol2-public-goods.md): native-memory boundaries and a testable route for embodied shared services and scarce-resource governance.
+
 ## Relation to NaturalDAO
 
 Developed here independently; no task has been claimed in PoL-Governance yet. If it is merged later, the planned task id is HARNESS-01 and the target directory `PoL-Governance/research/PoL2-Governance-Compiler/`. Clause ids follow the DATA-02 ontology; this project adds no clause interpretation of its own.
