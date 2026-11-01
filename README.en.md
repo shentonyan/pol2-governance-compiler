@@ -67,7 +67,7 @@ The fourth command exits with code 1 by design: G06 rules always_block not above
 
 ## Research note
 
-- [MEMT-1.0 and PoL2 in the public-goods era](docs/memt-pol2-public-goods.md): native-memory boundaries and a testable route for embodied shared services and scarce-resource governance.
+- [MEMT-1.0 and PoL2 in the public-goods era](docs/memt-pol2-public-goods.md): updated 2026-11-01 with the official Nano/Flash model snapshot, state save/restore, and deployment-governance implications, alongside native-memory limits and a public-goods validation route.
 - [Separating experience memory, authority, authorization, and audit](docs/memory-authority-storage.md): four trust boundaries, architecture and sequence diagrams, a PostgreSQL/object-store design, and revocation, offline, and deletion behavior.
 - [Cross-round memory for PoL2 public-goods governance: research map and analysis](docs/pol2-memory-governance-research-map.md): an integrated evidence map of MEMT, normative authority, short-lived authorization, audit, embodied runtime governance, commons, storage, threat model, and staged validation. (The report is in Chinese.)
 
