@@ -7,8 +7,8 @@ labels) and judges (the candidate governance layer). Rules:
 2. A judge's family or base family must not appear among generator or truth families.
 3. Truth teachers must not share a family with the generator (DATA-02 removes the generator's
    lineage from the truth pool).
-4. When truth teachers exist there must be at least two distinct families (DATA-02 requires
-   agreement of at least two lineages before a label is issued).
+4. When truth teachers exist there must be at least two independent lineages (DATA-02
+   requires agreement of two lineages). A family and its base family count together.
 
 Names that reveal a known base model (for example Kev is built on Qwen) must declare it; hiding a
 base model is how a same-family judge would slip through rule 2.
@@ -37,8 +37,24 @@ FAMILY_HINTS = {
 
 
 def _families(entry):
-    fams = {entry.get('family'), entry.get('base_family')}
-    return {f.lower() for f in fams if isinstance(f, str) and f}
+    fams = (entry.get('family'), entry.get('base_family'))
+    return {f.strip().casefold() for f in fams if isinstance(f, str) and f.strip()}
+
+
+def _independent_lineage_count(teachers):
+    groups = []
+    for teacher in teachers:
+        lineage = _families(teacher)
+        if not lineage:
+            continue
+        separate = []
+        for group in groups:
+            if lineage & group:
+                lineage.update(group)
+            else:
+                separate.append(group)
+        groups = separate + [lineage]
+    return len(groups)
 
 
 def check(card):
@@ -52,10 +68,16 @@ def check(card):
             raise InputError(f'result card: lineage.{role} must be a list (empty if unused)')
         roles[role] = entries
         for entry in entries:
+            if not isinstance(entry, dict):
+                raise InputError(f'result card: lineage.{role} entries must be objects')
             name = str(entry.get('name', '')).lower()
-            if not entry.get('family'):
-                findings.append(f'{role}: {entry.get("name")!r} declares no family')
+            family = entry.get('family')
+            if not isinstance(family, str) or not family.strip():
+                findings.append(f'{role}: {entry.get("name")!r} declares no valid family')
                 continue
+            base_family = entry.get('base_family')
+            if base_family is not None and (not isinstance(base_family, str) or not base_family.strip()):
+                findings.append(f'{role}: {entry.get("name")!r} declares an invalid base family')
             declared = _families(entry)
             for hint, fam in FAMILY_HINTS.items():
                 if hint in name and fam not in declared:
@@ -63,21 +85,21 @@ def check(card):
                                     f'{sorted(declared)}; add base_family')
     if not roles['judges']:
         findings.append('lineage.judges is empty: the candidate must declare its models')
-    data_fams = set().union(*(_families(e) for e in roles['generator'] + roles['truth'])) \
-        if roles['generator'] or roles['truth'] else set()
-    gen_fams = set().union(*(_families(e) for e in roles['generator'])) if roles['generator'] else set()
-    truth_fams = set().union(*(_families(e) for e in roles['truth'])) if roles['truth'] else set()
+    gen_fams = set().union(*(_families(e) for e in roles['generator']))
+    truth_fams = set().union(*(_families(e) for e in roles['truth']))
+    data_fams = gen_fams | truth_fams
     for judge in roles['judges']:
         clash = _families(judge) & data_fams
         if clash:
             findings.append(f'judge {judge.get("name")!r} shares lineage {sorted(clash)} with the data')
     if truth_fams & gen_fams:
         findings.append(f'truth teachers share lineage {sorted(truth_fams & gen_fams)} with the generator')
-    if roles['truth'] and len(truth_fams) < 2:
-        findings.append('reference labels come from fewer than two families')
+    independent_truth = _independent_lineage_count(roles['truth'])
+    if roles['truth'] and independent_truth < 2:
+        findings.append('reference labels come from fewer than two independent lineages')
     metrics = {'generator_families': sorted(gen_fams), 'truth_families': sorted(truth_fams),
-               'judge_families': sorted(set().union(*(_families(j) for j in roles['judges'])))
-               if roles['judges'] else []}
+               'independent_truth_lineages': independent_truth,
+               'judge_families': sorted(set().union(*(_families(j) for j in roles['judges'])))}
     return GateResult(GATE, TITLE, SPEC_RULE, 'fail' if findings else 'pass', findings, metrics)
 
 

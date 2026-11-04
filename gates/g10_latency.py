@@ -15,7 +15,9 @@ import re
 import sys
 
 from .card import require_sections, section
-from .common import EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_json, load_jsonl
+from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, finite_number,
+                     load_json, load_jsonl)
+from .g01_schema import EXECUTION
 
 GATE = 'G10'
 TITLE = '延迟与失败披露'
@@ -30,10 +32,27 @@ def nearest_rank(values, q):
     return ordered[max(0, math.ceil(q * len(ordered)) - 1)] if ordered else None
 
 
+def _valid_latency(value):
+    return finite_number(value) and value >= 0
+
+
 def measured(predictions):
-    latencies = [p['latency_ms'] for p in predictions]
-    return {'requests': len(predictions),
-            'failures': sum(p.get('execution_status') != 'ok' for p in predictions),
+    if not isinstance(predictions, (list, tuple)) or not predictions:
+        raise InputError('latency requires a non-empty sequence of predictions')
+    latencies = []
+    failures = 0
+    for number, prediction in enumerate(predictions, 1):
+        if not isinstance(prediction, dict):
+            raise InputError(f'prediction row {number}: expected an object')
+        latency = prediction.get('latency_ms')
+        if not _valid_latency(latency):
+            raise InputError(f'prediction row {number}: latency_ms must be a finite number >= 0')
+        state = prediction.get('execution_status')
+        if state not in EXECUTION:
+            raise InputError(f'prediction row {number}: unknown or missing execution_status')
+        latencies.append(latency)
+        failures += state != 'ok'
+    return {'requests': len(latencies), 'failures': failures,
             'p50_ms': nearest_rank(latencies, 0.5), 'p95_ms': nearest_rank(latencies, 0.95)}
 
 
@@ -43,11 +62,12 @@ def check(card, predictions):
     actual = measured(predictions)
     findings = []
     for key in ('requests', 'failures'):
-        if reported.get(key) != actual[key]:
-            findings.append(f'latency.{key}: card says {reported.get(key)!r}, predictions show {actual[key]}')
+        value = reported.get(key)
+        if type(value) is not int or value != actual[key]:
+            findings.append(f'latency.{key}: card says {value!r}, predictions show {actual[key]}')
     for key in ('p50_ms', 'p95_ms'):
         value = reported.get(key)
-        if type(value) not in (int, float) or abs(value - actual[key]) > TOLERANCE_MS:
+        if not _valid_latency(value) or abs(value - actual[key]) > TOLERANCE_MS:
             findings.append(f'latency.{key}: card says {value!r}, predictions show {actual[key]}')
     hardware = reported.get('hardware_class')
     if not isinstance(hardware, str) or not hardware.strip():
@@ -69,7 +89,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         result = check(load_json(args.card), load_jsonl(args.predictions))
-    except (InputError, OSError, KeyError) as error:
+    except (InputError, OSError) as error:
         print(f'{GATE} input error: {error}', file=sys.stderr)
         return EXIT_INPUT_ERROR
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))

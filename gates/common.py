@@ -2,14 +2,25 @@
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 EXIT_PASS, EXIT_FAIL, EXIT_INPUT_ERROR = 0, 1, 2
+EXIT_INCOMPLETE = 3
 
 
 class InputError(ValueError):
     """The input is malformed, so the gate cannot give a verdict at all."""
+
+
+def finite_number(value):
+    if type(value) not in (int, float):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _unique_keys(pairs):

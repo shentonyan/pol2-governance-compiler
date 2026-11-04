@@ -30,10 +30,11 @@ class Scenario:
     predictions: list
     card: dict
     extra_files: dict = field(default_factory=dict)
+    dataset_override: list | None = None
 
     @property
     def dataset(self):
-        return self.cases + self.validation
+        return self.cases + self.validation if self.dataset_override is None else self.dataset_override
 
 
 def _relatency(card, predictions):
@@ -59,7 +60,7 @@ def build(seed=0):
     card = fixture.honest_card(preds, val)
 
     def variant(key, title, loophole, intended, *, cases=None, validation=None, predictions=None,
-                card_edit=None, extra_files=None, keep_latency=False):
+                card_edit=None, extra_files=None, keep_latency=False, dataset_override=None):
         c = copy.deepcopy(cases if cases is not None else test)
         v = copy.deepcopy(validation if validation is not None else val)
         p = copy.deepcopy(predictions if predictions is not None else preds)
@@ -68,7 +69,8 @@ def build(seed=0):
             _relatency(k, p)
         if card_edit:
             card_edit(k)
-        return Scenario(key, title, loophole, intended, c, v, p, k, extra_files or {})
+        return Scenario(key, title, loophole, intended, c, v, p, k, extra_files or {},
+                        copy.deepcopy(dataset_override))
 
     out = [variant('H0', 'honest control', 'none: a good but imperfect candidate, honest card', '-')]
     for key, name in (('C01', 'always_allow'), ('C02', 'always_block'), ('C03', 'always_clarify')):
@@ -122,6 +124,35 @@ def build(seed=0):
                        'G09', card_edit=lambda k: k['data'].update(eligible_for_ranking=True)))
     out.append(variant('C16', 'failures hidden from the card', 'report latency without the timeout',
                        'G10', card_edit=lambda k: k['latency'].update(failures=0)))
+    tuning_copy = copy.deepcopy(test[0])
+    tuning_copy.update(id='val-copy', split='validation', family_id='copy-val', subset='calibration')
+    out.append(variant('C17', 'evaluated split omitted from the audit',
+                       'tune on a renamed evaluation case and omit its source from the dataset',
+                       'G02', dataset_override=val + [tuning_copy],
+                       card_edit=lambda k: k['thresholds'].update(case_ids=['val-copy'])))
+    replaced = copy.deepcopy(test)
+    replaced[0]['input']['target'] += ' edited'
+    out.append(variant('C18', 'different case behind the same id',
+                       'evaluate edited text while auditing the original record', 'G02',
+                       cases=replaced, dataset_override=test + val))
+    out.append(variant('C19', 'escaped split marker',
+                       'encode a synthetic prohibited split using a JSON escape', 'G04',
+                       extra_files={'notes/cases.jsonl': json.dumps(leak).replace(
+                           'private_holdout', r'private\u005fholdout') + '\n'}))
+    out.append(variant('C20', 'one truth teacher counts twice',
+                       'declare one teacher with an adapter family and a base family', 'G07',
+                       card_edit=lambda k: k['lineage'].update(truth=[
+                           {'name': 'teacher-b-adapter', 'family': 'adapter-b', 'base_family': 'family-b'}])))
+    missing_latency = copy.deepcopy(preds)
+    del missing_latency[0]['latency_ms']
+    out.append(variant('C21', 'missing latency breaks the report',
+                       'omit a latency field so the audit crashes before reporting failures', 'G10',
+                       predictions=missing_latency, keep_latency=True))
+    marked_validation = copy.deepcopy(val)
+    marked_validation[-1]['subset'] = 'dev'
+    out.append(variant('C22', 'threshold cases omit subset metadata',
+                       'leave tuning rows unmarked in a validation split that declares subsets',
+                       'G05', validation=marked_validation))
     return out
 
 

@@ -1,7 +1,8 @@
 """G02: a scenario family lives in exactly one split, and so do its pairs and paraphrases.
 
 Run it over all splits at once; a paraphrase whose source sits in another file cannot be checked
-and is reported as a finding rather than silently skipped.
+and is reported as a finding rather than silently skipped. When evaluated cases are supplied,
+each must match its record in the dataset being checked.
 """
 from __future__ import annotations
 
@@ -10,23 +11,34 @@ import json
 import sys
 from collections import defaultdict
 
-from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_jsonl,
-                     split_of)
+from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, index_by_id,
+                     load_jsonl, split_of)
 
 GATE = 'G02'
 TITLE = '分区不跨族'
 SPEC_RULE = '按场景族预先划分……同情节、翻译和改写不得跨区。（PoL-Governance SPEC，第 1 阶段）'
 
 
-def check(cases):
+def _case_split(row):
+    if 'split' in row and 'region' in row and row['split'] != row['region']:
+        raise InputError(f'{row["id"]}: conflicting split and region fields')
+    return split_of(row)
+
+
+def _case_identity(row):
+    fields = {key: value for key, value in row.items() if key not in ('split', 'region')}
+    return _case_split(row), json.dumps(fields, sort_keys=True)
+
+
+def check(cases, evaluated=None):
     findings = []
     family_splits = defaultdict(set)
-    by_id = {}
+    by_id = index_by_id(cases, 'dataset cases')
     pairs = defaultdict(list)
     for row in cases:
         case_id = row.get('id')
         family = row.get('family_id')
-        split = split_of(row)
+        split = _case_split(row)
         if not isinstance(family, str) or not family:
             findings.append(f'{case_id}: missing family_id')
             continue
@@ -34,7 +46,6 @@ def check(cases):
             findings.append(f'{case_id}: missing split/region')
             continue
         family_splits[family].add(split)
-        by_id[case_id] = row
         if row.get('pair_id') is not None:
             pairs[row['pair_id']].append(row)
 
@@ -55,10 +66,18 @@ def check(cases):
         if source not in by_id:
             findings.append(f'{case_id}: paraphrase_of {source} is not in the checked set')
             continue
-        if by_id[source]['family_id'] != row['family_id']:
+        if by_id[source].get('family_id') != row.get('family_id'):
             findings.append(f'{case_id}: paraphrase of {source} sits in another family')
         if split_of(by_id[source]) != split_of(row):
             findings.append(f'{case_id}: paraphrase of {source} sits in another split')
+
+    if evaluated is not None:
+        for case_id, row in index_by_id(evaluated, 'evaluated cases').items():
+            dataset_row = by_id.get(case_id)
+            if dataset_row is None:
+                findings.append(f'{case_id}: evaluated case missing from dataset')
+            elif _case_identity(row) != _case_identity(dataset_row):
+                findings.append(f'{case_id}: evaluated case differs from dataset record')
 
     metrics = {
         'cases': len(cases),
@@ -75,10 +94,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         rows = [row for path in args.cases for row in load_jsonl(path)]
+        result = check(rows)
     except (InputError, OSError) as error:
         print(f'{GATE} input error: {error}', file=sys.stderr)
         return EXIT_INPUT_ERROR
-    result = check(rows)
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     return EXIT_PASS if result.status == 'pass' else EXIT_FAIL
 

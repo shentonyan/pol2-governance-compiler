@@ -1,8 +1,8 @@
 """G05: every case used to set a threshold comes from the validation split.
 
 The result card lists the ids in thresholds.case_ids (an empty list means no tuned threshold). Each id
-must exist in the dataset, sit in the validation split, carry subset "calibration" when the dataset
-marks subsets, and must not be one of the evaluated cases.
+must exist in the dataset, sit in the validation split, carry subset "calibration" when validation
+rows mark subsets, and must not be one of the evaluated cases.
 """
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ import json
 import sys
 
 from .card import require_sections, section
-from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_json,
-                     load_jsonl, split_of)
+from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, index_by_id,
+                     load_json, load_jsonl, split_of)
 
 GATE = 'G05'
 TITLE = '阈值来源'
@@ -24,9 +24,12 @@ ALLOWED_SPLIT = 'validation'
 def check(card, dataset, evaluated=None):
     require_sections(card, 'thresholds')
     ids = section(card, 'thresholds').get('case_ids')
-    if not isinstance(ids, list) or not all(isinstance(i, str) for i in ids):
-        raise InputError('result card: thresholds.case_ids must be a list of ids')
-    by_id = {row.get('id'): row for row in dataset}
+    if not isinstance(ids, list) or not all(isinstance(i, str) and i for i in ids):
+        raise InputError('result card: thresholds.case_ids must be a list of non-empty string ids')
+    if len(ids) != len(set(ids)):
+        raise InputError('result card: thresholds.case_ids must contain unique ids')
+    by_id = index_by_id(dataset, 'dataset cases')
+    has_subsets = any(split_of(row) == ALLOWED_SPLIT and 'subset' in row for row in by_id.values())
     evaluated_ids = {row.get('id') for row in (evaluated or [])}
     findings = []
     for case_id in ids:
@@ -37,8 +40,8 @@ def check(card, dataset, evaluated=None):
         if split_of(row) != ALLOWED_SPLIT:
             findings.append(f'{case_id}: threshold set on split {split_of(row)!r}, '
                             f'only {ALLOWED_SPLIT!r} is allowed')
-        if 'subset' in row and row['subset'] != 'calibration':
-            findings.append(f'{case_id}: validation subset {row["subset"]!r}, expected calibration')
+        elif has_subsets and row.get('subset') != 'calibration':
+            findings.append(f'{case_id}: validation subset must be calibration')
         if case_id in evaluated_ids:
             findings.append(f'{case_id}: threshold case is also an evaluated case')
     metrics = {'threshold_cases': len(ids), 'tuned': bool(ids)}

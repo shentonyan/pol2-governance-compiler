@@ -33,7 +33,7 @@ def main():
         rate, points = scenarios.coin_flip_pass_rate(cases, trials=1000)
         summary[name] = {'trials': 1000, 'seeds': [1, 1000], 'pass_rate': rate,
                          'points_over_miss': [[round(o, 4), round(m, 4)] for o, m in points]}
-    (out / 'coin_flip.json').write_text(json.dumps(summary, indent=1), encoding='utf-8')
+    (out / 'coin_flip.json').write_text(json.dumps(summary, indent=1), encoding='utf-8', newline='\n')
     print(json.dumps({'scenarios': len(rows),
                       'honest_control': next(r['verdict'] for r in rows if r['key'] == 'H0'),
                       'cheats_caught': sum(r['verdict'] == 'fail' for r in rows if r['key'] != 'H0'),

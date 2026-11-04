@@ -16,12 +16,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
 import sys
+from bisect import bisect_left, bisect_right
+from collections import Counter, defaultdict
 from itertools import combinations
 
-from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_jsonl,
-                     reference_of, split_of)
+from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, index_by_id,
+                     load_jsonl, reference_of, split_of)
 
 GATE = 'G03'
 TITLE = '去重与长度捷径'
@@ -33,8 +36,14 @@ _STRIP = re.compile(r'[\s\W_]+', re.UNICODE)
 
 
 def text_of(case):
-    inp = case.get('input') or {}
+    inp = case.get('input', {})
+    if inp is None:
+        inp = {}
+    if not isinstance(inp, dict):
+        raise InputError(f'{case.get("id")}: input must be an object')
     context = inp.get('context') or []
+    if isinstance(context, list) and any(not isinstance(part, str) for part in context):
+        raise InputError(f'{case.get("id")}: input.context list must contain strings')
     parts = (context if isinstance(context, list) else [str(context)]) + [str(inp.get('target', ''))]
     return _STRIP.sub('', ''.join(parts)).lower()
 
@@ -45,6 +54,43 @@ def grams(text, n=3):
 
 def jaccard(a, b):
     return len(a & b) / len(a | b) if a or b else 1.0
+
+
+def _candidate_pairs(cases, shingles, near):
+    """Yield all possible matches in the same order as exhaustive pairs."""
+    if not 0 < near <= 1:
+        # A nonpositive threshold also admits disjoint sets; NaN preserves the
+        # original comparison behavior through the exhaustive path.
+        yield from combinations(cases, 2)
+        return
+
+    # A score rounded to 'near' may have a slightly smaller exact value.
+    # Compute the minimum overlap using the preceding float as a safe bound.
+    numerator, denominator = math.nextafter(near, 0.0).as_integer_ratio()
+    frequency = Counter(gram for tokens in shingles.values() for gram in tokens)
+    prefixes, sizes, postings = [], [], defaultdict(list)
+    for i, case in enumerate(cases):
+        tokens = shingles[case['id']]
+        size = len(tokens)
+        minimum_overlap = (numerator * size + denominator - 1) // denominator
+        ordered = sorted(tokens, key=lambda gram: (frequency[gram], gram))
+        prefix = ordered[:size - minimum_overlap + 1]
+        prefixes.append(prefix)
+        sizes.append(size)
+        for gram in prefix:
+            postings[gram].append(i)
+
+    # The earliest shared gram of a qualifying pair must lie in both prefixes:
+    # either suffix alone has fewer grams than the minimum required overlap.
+    for i, prefix in enumerate(prefixes):
+        candidates = set()
+        for gram in prefix:
+            positions = postings[gram]
+            candidates.update(positions[bisect_right(positions, i):])
+        for j in sorted(candidates):
+            smaller, larger = sorted((sizes[i], sizes[j]))
+            if smaller / larger >= near:
+                yield cases[i], cases[j]
 
 
 def length_auc(cases, labels_by_id=None):
@@ -58,15 +104,21 @@ def length_auc(cases, labels_by_id=None):
             neg.append(len(text_of(case)))
     if not pos or not neg:
         return None, len(pos), len(neg)
-    wins = sum((p > n) + 0.5 * (p == n) for p in pos for n in neg)
+    neg.sort()
+    wins = 0.0
+    for length in pos:
+        lower = bisect_left(neg, length)
+        upper = bisect_right(neg, length, lower)
+        wins += lower + 0.5 * (upper - lower)
     auc = wins / (len(pos) * len(neg))
     return max(auc, 1 - auc), len(pos), len(neg)
 
 
 def check(cases, labels=None, near=NEAR):
-    labels_by_id = {r['id']: r for r in labels} if labels is not None else None
+    cases_by_id = index_by_id(cases, 'cases')
+    labels_by_id = index_by_id(labels, 'labels') if labels is not None else None
     findings = []
-    texts = {c['id']: text_of(c) for c in cases}
+    texts = {case_id: text_of(case) for case_id, case in cases_by_id.items()}
     seen = {}
     for case in cases:
         t = texts[case['id']]
@@ -76,7 +128,7 @@ def check(cases, labels=None, near=NEAR):
             seen[t] = case['id']
     shingles = {k: grams(v) for k, v in texts.items()}
     within = []
-    for a, b in combinations(cases, 2):
+    for a, b in _candidate_pairs(cases, shingles, near):
         if a.get('pair_id') is not None and a.get('pair_id') == b.get('pair_id'):
             continue
         if texts[a['id']] == texts[b['id']]:

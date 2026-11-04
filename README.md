@@ -31,15 +31,17 @@ PoL-Governance 的 SPEC、AGENTS 和 PROTOCOL 已经用文字写清了评测规�
 
 每条门禁的设计理由见 [docs/gate-design.md](docs/gate-design.md)。
 
+G03 的候选筛选、判定等价性和合成性能对比见[复现命令](docs/gate-design.md#g03-性能复现)。
+
 ## 门禁真的拦得住吗：红队矩阵
 
-我们构造了一个诚实的对照场景：一个有少量错误的候选，加一张如实填写的结果卡。然后逐一构造 16 种作弊，每种只改对照中的一处，再实跑全部十条门禁。
+我们构造了一个有少量错误的候选和一张如实填写的结果卡，再逐一构造 22 种对照变体，实跑全部十条门禁。
 
 ![红队矩阵](docs/figures/fig3_redteam.png)
 
-*图 2　红队矩阵（由 `python -m redteam` 实跑生成）。诚实对照通过全部十条门禁；16 种作弊全部被预定的门禁拦下（黑框），矩阵接近对角线。C08（跨区改写）同时被 G02 和 G03 拦下；C06 的预测格式不合法，G06 不再计分（灰色）。合成夹具不含任何 PoL2 内容。*
+*图 2　红队矩阵（由 `python -m redteam` 实跑生成）。诚实对照通过全部十条门禁，22 个反例均由预定门禁拦截（黑框）。预测格式有误时，G06 跳过计分（灰色）。*
 
-两点结论：门禁**不误伤**诚实的工作；每条门禁都至少拦下一种作弊，**没有空转的门禁**。详见 [docs/redteam.md](docs/redteam.md)。
+每条门禁至少拦截了一个反例。夹具与反例见 [docs/redteam.md](docs/redteam.md)。
 
 ## G06：为什么底线是凸包而不是单点
 
@@ -69,13 +71,15 @@ python -m tools.make_figures
 
 第四条命令以退出码 1 结束，这是预期结果：always_block 被 G06 判为不高于底线。另外 G08 也不通过，因为 pilot 的 20 条里只有 2 条是"信息不足"，大部分场景族缺这一类。这 20 条是助手生成、尚未人工审定的试例，只能用来调接口，不能用来排名。
 
+完整审计需用 `--dataset` 提供所有受审分区，并包含 `--cases` 中的记录。`run_all` 的退出码为 0（通过）、1（失败）、2（命令或文件输入错误）、3（证据不全）。
+
 ## 目录
 
 | 目录 | 内容 |
 |---|---|
 | [gates/](gates/) | 十条门禁与 `run_all.py`；结果卡读取见 `card.py` |
 | [baselines/](baselines/README.md) | 退化策略底线 |
-| [redteam/](redteam/) | 合成夹具与 16 种作弊场景 |
+| [redteam/](redteam/) | 合成夹具与 22 个红队反例 |
 | [contracts/](contracts/README.md) | 条款对照表与契约格式 |
 | [rulings/](rulings/README.md) | 待裁定事项（19 条）与裁定模板 |
 | [skills/](skills/README.md) | 编译者、条款审查者、盲评测者的 SOP 草稿与阶段表 |
