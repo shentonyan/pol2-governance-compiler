@@ -24,6 +24,6 @@ python -m redteam
 python -m gates.run_all --cases <evaluated.jsonl> --dataset <all-splits.jsonl ...> --predictions <predictions.jsonl> --card <card.json>
 ```
 
-`run_all` 的结论只有三种：`fail`、`incomplete`（有门禁因缺少输入而无法判定）、`pass`（十条全部通过）。`incomplete` 不是通过。
+`run_all` 的结论只有三种：`pass`（十条全部通过，退出码 0）、`fail`（退出码 1）和 `incomplete`（缺少输入，退出码 3）。输入文件无法读取或解析时返回 2。需要完整审计时，`--dataset` 必须包含各受审分区以及 `--cases` 中的原始记录。
 
 新增作弊手法时，先在 `redteam/scenarios.py` 加场景并写明预定门禁，再改门禁，让 `tests/test_redteam.py` 继续通过。

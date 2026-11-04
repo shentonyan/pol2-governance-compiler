@@ -12,8 +12,8 @@
 | `evaluation.blind` | 是否声称盲测；只有独立评测者在保留集上、且测试集未被看过时才能为 true | G09 |
 | `evaluation.public_test_seen` | 构建候选时是否看过这份测试集 | G09 |
 | `evaluation.evaluator` | `self` 或 `independent` | G09 |
-| `thresholds.case_ids` | 定阈值所用的 case id；空列表表示没有调过阈值 | G05 |
-| `lineage.generator` / `truth` / `judges` | 出题、标注、判定所用的模型：name、family，微调模型另写 base_family | G07 |
+| `thresholds.case_ids` | 定阈值所用的唯一 case id。空列表表示没有调过阈值。validation 开始使用子集标记后，调阈值的案例必须标为 `calibration` | G05 |
+| `lineage.generator` / `truth` / `judges` | 出题、标注、判定所用的模型，声明 name 和 family。微调模型另写 base_family，同一谱系的别名和底座共同计数 | G07 |
 | `clauses` | 声称覆盖的条款 id | G08 |
 | `latency.requests` / `failures` / `p50_ms` / `p95_ms` | 请求数、失败数、延迟分位数；必须与预测文件重算的结果一致 | G10 |
 | `latency.hardware_class` / `concurrency` | 硬件类别与并发数；写类别，不写型号 | G10 |

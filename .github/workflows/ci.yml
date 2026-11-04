@@ -19,7 +19,9 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -t . -v
       - name: Red-team matrix (honest control passes, every cheat caught)
-        run: python -m redteam
+        run: |
+          python -m redteam
+          git diff --exit-code -- results/tables/redteam_matrix.csv results/tables/coin_flip.json
       - name: Repository passes G04 (no holdout content)
         run: python -m gates.g04_holdout .
       - name: Pilot data passes G02

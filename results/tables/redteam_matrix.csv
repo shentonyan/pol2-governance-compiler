@@ -16,3 +16,9 @@ C13,claim a clause without its hard cases,"drop the insufficient cases of one cl
 C14,public test reported as blind,call a seen test set blind,G09,fail,G09,pass,pass,pass,pass,pass,pass,pass,pass,fail,pass
 C15,ranking on unreviewed labels,rank on proposals nobody reviewed,G09,fail,G09,pass,pass,pass,pass,pass,pass,pass,pass,fail,pass
 C16,failures hidden from the card,report latency without the timeout,G10,fail,G10,pass,pass,pass,pass,pass,pass,pass,pass,pass,fail
+C17,evaluated split omitted from the audit,tune on a renamed evaluation case and omit its source from the dataset,G02,fail,G02,pass,fail,pass,pass,pass,pass,pass,pass,pass,pass
+C18,different case behind the same id,evaluate edited text while auditing the original record,G02,fail,G02,pass,fail,pass,pass,pass,pass,pass,pass,pass,pass
+C19,escaped split marker,encode a synthetic prohibited split using a JSON escape,G04,fail,G04,pass,pass,pass,fail,pass,pass,pass,pass,pass,pass
+C20,one truth teacher counts twice,declare one teacher with an adapter family and a base family,G07,fail,G07,pass,pass,pass,pass,pass,pass,fail,pass,pass,pass
+C21,missing latency breaks the report,omit a latency field so the audit crashes before reporting failures,G10,fail,G01 G10,fail,pass,pass,pass,pass,not_applicable,pass,pass,pass,fail
+C22,threshold cases omit subset metadata,leave tuning rows unmarked in a validation split that declares subsets,G05,fail,G05,pass,pass,pass,pass,fail,pass,pass,pass,pass,pass
