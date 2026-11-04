@@ -8,10 +8,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import sys
 
-from .common import EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_jsonl
+from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, finite_number,
+                     load_jsonl)
 
 GATE = 'G01'
 TITLE = 'schema 与执行状态'
@@ -23,10 +23,6 @@ ACTIONS = ('allow', 'repair', 'block', 'clarify', 'review')
 EXECUTION = ('ok', 'timeout', 'error', 'invalid')
 REQUIRED = {'id', 'status', 'issues', 'action', 'latency_ms', 'execution_status'}
 ALLOWED = REQUIRED | {'status_probs'}
-
-
-def _number(value):
-    return type(value) in (int, float) and math.isfinite(value)
 
 
 def _row_findings(key, row, issue_enum):
@@ -56,14 +52,14 @@ def _row_findings(key, row, issue_enum):
         out.append(f'{key}: action {row["action"]!r}')
     if not ok and row['action'] is not None and row['action'] not in ACTIONS:
         out.append(f'{key}: fallback action {row["action"]!r}')
-    if not (_number(row['latency_ms']) and row['latency_ms'] >= 0):
+    if not (finite_number(row['latency_ms']) and row['latency_ms'] >= 0):
         out.append(f'{key}: latency_ms must be a finite number >= 0')
     if 'status_probs' in row:
         probs = row['status_probs']
         if not ok:
             out.append(f'{key}: a failed request must not report probabilities')
         elif not (isinstance(probs, dict) and set(probs) == set(STATUSES)
-                  and all(_number(v) and 0 <= v <= 1 for v in probs.values())
+                  and all(finite_number(v) and 0 <= v <= 1 for v in probs.values())
                   and abs(sum(probs.values()) - 1) <= 1e-6):
             out.append(f'{key}: status_probs must cover the three statuses and sum to one')
     return out

@@ -13,7 +13,7 @@ import re
 import sys
 from pathlib import Path
 
-from .common import EXIT_FAIL, EXIT_PASS, GateResult, InputError, parse_json
+from .common import EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, parse_json
 
 GATE = 'G04'
 TITLE = '保留集零接触'
@@ -46,46 +46,54 @@ def _scan_file(path, rel):
     if suffix in BINARY_DATA:
         return [f'{rel}: binary data file cannot be inspected; keep it outside the repository '
                 f'and register it by hash']
-    findings = []
     if 'holdout' in path.name.lower():
-        findings.append(f'{rel}: data file named like a holdout split')
-    text = path.read_text(encoding='utf-8', errors='replace')
-    if MARK not in text:
-        return findings
+        return [f'{rel}: data file named like a holdout split']
+    try:
+        text = path.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        return [f'{rel}: data file is not valid UTF-8']
     if suffix == '.json':
         try:
-            hits = list(_content_rows(parse_json(text, str(rel))))
+            if any(_content_rows(parse_json(text, rel))):
+                return [f'{rel}: holdout-marked object with case content']
         except InputError:
-            hits = [None]
-        if hits:
-            findings.append(f'{rel}: holdout-marked object with case content (or unparsable JSON)')
+            return [f'{rel}: JSON data cannot be parsed']
     elif suffix == '.jsonl':
-        for number, line in enumerate(text.splitlines(), 1):
-            if MARK in line:
-                try:
-                    hit = any(True for _ in _content_rows(parse_json(line, f'{rel}:{number}')))
-                except InputError:
-                    hit = True
-                if hit:
-                    findings.append(f'{rel}:{number}: holdout row with case content')
-                    break
+        for number, line in enumerate(text.split('\n'), 1):
+            if not line.strip():
+                continue
+            location = f'{rel}:{number}'
+            try:
+                row = parse_json(line, location)
+            except InputError:
+                return [f'{location}: JSONL data cannot be parsed']
+            if not isinstance(row, dict):
+                return [f'{location}: JSONL row must be an object']
+            if any(_content_rows(row)):
+                return [f'{location}: holdout row with case content']
     else:  # csv / tsv: cannot tell a registry row from content, so a human must allow it
         for number, line in enumerate(text.splitlines(), 1):
             if CELL.search(line):
-                findings.append(f'{rel}:{number}: row with a private_holdout cell')
-                break
-    return findings
+                return [f'{rel}:{number}: row with a private_holdout cell']
+    return []
 
 
 def check(root, allow=()):
     root = Path(root).resolve()
+    if not root.is_dir():
+        raise InputError('G04 scan root must be an existing directory')
     allow = {a.replace('\\', '/') for a in allow}
     findings, scanned = [], 0
     for path in sorted(root.rglob('*')):
         rel = path.relative_to(root).as_posix()
-        if set(Path(rel).parts) & SKIP_DIRS or not path.is_file() or rel in allow:
+        if set(Path(rel).parts) & SKIP_DIRS or rel in allow:
             continue
         if path.suffix.lower() not in TEXT_DATA | BINARY_DATA:
+            continue
+        if path.is_symlink() or not path.resolve().is_relative_to(root):
+            findings.append(f'{rel}: linked data path cannot be inspected inside the repository')
+            continue
+        if not path.is_file():
             continue
         scanned += 1
         findings.extend(_scan_file(path, rel))
@@ -99,7 +107,11 @@ def main(argv=None):
     parser.add_argument('--allow', action='append', default=[],
                         help='relative path a human has reviewed and exempted; repeatable')
     args = parser.parse_args(argv)
-    result = check(args.root, args.allow)
+    try:
+        result = check(args.root, args.allow)
+    except (InputError, OSError) as error:
+        print(f'{GATE} input error: {error}', file=sys.stderr)
+        return EXIT_INPUT_ERROR
     print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     return EXIT_PASS if result.status == 'pass' else EXIT_FAIL
 

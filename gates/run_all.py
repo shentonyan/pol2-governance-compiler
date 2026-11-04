@@ -5,7 +5,7 @@ fails, ``pass`` only if all ten pass, and ``incomplete`` otherwise. ``incomplete
 
 Inputs:
   --cases        the evaluated cases (G01, G06, G08, G09)
-  --dataset      all splits together (G02, G03, G05); defaults to --cases
+  --dataset      all audited splits together (G02, G03, G05); must include the evaluated cases
   --labels       reference labels; default: proposals embedded in the cases
   --predictions  the candidate's predictions (G01, G06, G10)
   --card         the machine-readable result card (G05, G07, G08, G09, G10)
@@ -20,8 +20,8 @@ from pathlib import Path
 
 from . import (g01_schema, g02_family_split, g03_dedup, g04_holdout, g05_thresholds, g06_floor,
                g07_lineage, g08_coverage, g09_honesty, g10_latency)
-from .common import (EXIT_FAIL, EXIT_INPUT_ERROR, EXIT_PASS, GateResult, InputError, load_json,
-                     load_jsonl)
+from .common import (EXIT_FAIL, EXIT_INCOMPLETE, EXIT_INPUT_ERROR, EXIT_PASS, GateResult,
+                     InputError, load_json, load_jsonl)
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = (g01_schema, g02_family_split, g03_dedup, g04_holdout, g05_thresholds, g06_floor,
@@ -42,19 +42,18 @@ def _guard(module, call):
 
 
 def run(cases=None, labels=None, predictions=None, card=None, dataset=None, root=ROOT, allow=()):
-    dataset = dataset if dataset is not None else cases
     r = {}
     r['G01'] = (_guard(g01_schema, lambda: g01_schema.check(cases, predictions))
                 if cases is not None and predictions is not None
                 else _skip(g01_schema, 'needs --cases and --predictions'))
-    r['G02'] = (_guard(g02_family_split, lambda: g02_family_split.check(dataset))
-                if dataset is not None else _skip(g02_family_split, 'needs --dataset or --cases'))
+    r['G02'] = (_guard(g02_family_split, lambda: g02_family_split.check(dataset, cases))
+                if dataset is not None else _skip(g02_family_split, 'needs --dataset with all audited splits'))
     r['G03'] = (_guard(g03_dedup, lambda: g03_dedup.check(dataset, labels))
-                if dataset is not None else _skip(g03_dedup, 'needs --dataset or --cases'))
-    r['G04'] = g04_holdout.check(root, allow)
+                if dataset is not None else _skip(g03_dedup, 'needs --dataset with all audited splits'))
+    r['G04'] = _guard(g04_holdout, lambda: g04_holdout.check(root, allow))
     r['G05'] = (_guard(g05_thresholds, lambda: g05_thresholds.check(card, dataset, cases))
                 if card is not None and dataset is not None
-                else _skip(g05_thresholds, 'needs --card and the dataset'))
+                else _skip(g05_thresholds, 'needs --card and --dataset with all audited splits'))
     if cases is not None and r['G01'].status == 'fail' and predictions is not None:
         r['G06'] = _skip(g06_floor, 'G01 failed; predictions are not scored')
     else:
@@ -98,7 +97,7 @@ def main(argv=None):
         print(f'input error: {error}', file=sys.stderr)
         return EXIT_INPUT_ERROR
     print(json.dumps(report, ensure_ascii=False, indent=2))
-    return EXIT_FAIL if report['verdict'] == 'fail' else EXIT_PASS
+    return {'pass': EXIT_PASS, 'fail': EXIT_FAIL, 'incomplete': EXIT_INCOMPLETE}[report['verdict']]
 
 
 if __name__ == '__main__':
